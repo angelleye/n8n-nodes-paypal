@@ -17,7 +17,7 @@ export class PayPal implements INodeType {
 		icon: 'file:paypal.svg',
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["operation"]}}',
+		subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
 		description: 'Interact with PayPal API',
 		defaults: {
 			name: 'PayPal',
@@ -32,44 +32,101 @@ export class PayPal implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Operation',
-				name: 'operation',
+				displayName: 'Resource',
+				name: 'resource',
 				type: 'options',
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Create Invoice',
-						value: 'createInvoice',
+						name: 'Transaction',
+						value: 'transaction',
 					},
 					{
-						name: 'Get Invoice',
-						value: 'getInvoice',
+						name: 'Invoice',
+						value: 'invoice',
 					},
+				],
+				default: 'transaction',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['transaction'],
+					},
+				},
+				options: [
 					{
 						name: 'Get Transactions',
 						value: 'getTransactions',
-					},
-					{
-						name: 'List Invoices',
-						value: 'listInvoices',
-					},
-					{
-						name: 'Send Invoice',
-						value: 'sendInvoice',
-					},
-					{
-						name: 'Update Invoice',
-						value: 'updateInvoice',
+						description: 'Retrieve transaction details within a date range',
+						action: 'Get transactions',
 					},
 				],
 				default: 'getTransactions',
 			},
 			{
-				displayName: 'Include Raw PayPal Data',
-				name: 'includeRawData',
-				type: 'boolean',
-				default: false,
-				description: 'Whether to include raw_request and raw_response in the output data',
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['invoice'],
+					},
+				},
+				options: [
+					{
+						name: 'Create',
+						value: 'createInvoice',
+						description: 'Create a new invoice',
+						action: 'Create invoice',
+					},
+					{
+						name: 'Get',
+						value: 'getInvoice',
+						description: 'Retrieve a specific invoice',
+						action: 'Get invoice',
+					},
+					{
+						name: 'List',
+						value: 'listInvoices',
+						description: 'List invoices with optional filters',
+						action: 'List invoices',
+					},
+					{
+						name: 'Send',
+						value: 'sendInvoice',
+						description: 'Send an existing invoice to recipients',
+						action: 'Send invoice',
+					},
+					{
+						name: 'Update',
+						value: 'updateInvoice',
+						description: 'Update an existing invoice using patches',
+						action: 'Update invoice',
+					},
+				],
+				default: 'createInvoice',
+			},
+			{
+				displayName: 'Options',
+				name: 'options',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				options: [
+					{
+						displayName: 'Include Raw PayPal Data',
+						name: 'includeRawData',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include raw_request and raw_response in the output data for debugging',
+					},
+				],
 			},
 			{
 				displayName: 'Return All',
@@ -79,6 +136,7 @@ export class PayPal implements INodeType {
 				description: 'Whether to return all results or only up to a given limit',
 				displayOptions: {
 					show: {
+						resource: ['transaction', 'invoice'],
 						operation: ['getTransactions', 'listInvoices'],
 					},
 				},
@@ -93,6 +151,7 @@ export class PayPal implements INodeType {
 				},
 				displayOptions: {
 					show: {
+						resource: ['transaction', 'invoice'],
 						operation: ['getTransactions', 'listInvoices'],
 						returnAll: [false],
 					},
@@ -109,6 +168,7 @@ export class PayPal implements INodeType {
 				description: 'Number of results per page (default 100 for transactions, 20 for invoices)',
 				displayOptions: {
 					show: {
+						resource: ['transaction', 'invoice'],
 						operation: ['getTransactions', 'listInvoices'],
 					},
 				},
@@ -119,9 +179,11 @@ export class PayPal implements INodeType {
 				type: 'dateTime',
 				required: true,
 				default: '',
-				description: 'Start date for transactions (YYYY-MM-DD)',
+				description: 'Start date for transactions. Must be within the last 3 years.',
+				placeholder: 'e.g. 2024-01-01T00:00:00.000Z',
 				displayOptions: {
 					show: {
+						resource: ['transaction'],
 						operation: ['getTransactions'],
 					},
 				},
@@ -132,9 +194,11 @@ export class PayPal implements INodeType {
 				type: 'dateTime',
 				required: true,
 				default: '',
-				description: 'End date for transactions (YYYY-MM-DD)',
+				description: 'End date for transactions. Cannot be more than 31 days after start date.',
+				placeholder: 'e.g. 2024-01-31T23:59:59.999Z',
 				displayOptions: {
 					show: {
+						resource: ['transaction'],
 						operation: ['getTransactions'],
 					},
 				},
@@ -146,6 +210,7 @@ export class PayPal implements INodeType {
 				default: '',
 				displayOptions: {
 					show: {
+						resource: ['transaction'],
 						operation: ['getTransactions'],
 					},
 				},
@@ -187,6 +252,7 @@ export class PayPal implements INodeType {
 				default: ['all'],
 				displayOptions: {
 					show: {
+						resource: ['transaction'],
 						operation: ['getTransactions'],
 					},
 				},
@@ -199,6 +265,7 @@ export class PayPal implements INodeType {
 				default: '',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['getInvoice', 'sendInvoice', 'updateInvoice'],
 					},
 				},
@@ -212,6 +279,7 @@ export class PayPal implements INodeType {
 				description: 'The invoice object as JSON',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['createInvoice'],
 					},
 				},
@@ -224,6 +292,7 @@ export class PayPal implements INodeType {
 				description: 'Additional send parameters as JSON (subject, note, etc.)',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['sendInvoice'],
 					},
 				},
@@ -237,6 +306,7 @@ export class PayPal implements INodeType {
 				description: 'Array of patch operations as JSON',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['updateInvoice'],
 					},
 				},
@@ -249,6 +319,7 @@ export class PayPal implements INodeType {
 				description: 'Whether to return total_items and total_pages',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['listInvoices'],
 					},
 				},
@@ -261,6 +332,7 @@ export class PayPal implements INodeType {
 				description: 'Comma-separated list of fields to return',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['listInvoices'],
 					},
 				},
@@ -314,6 +386,7 @@ export class PayPal implements INodeType {
 				default: [],
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['listInvoices'],
 					},
 				},
@@ -325,6 +398,7 @@ export class PayPal implements INodeType {
 				default: '',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['listInvoices'],
 					},
 				},
@@ -337,6 +411,7 @@ export class PayPal implements INodeType {
 				description: 'Start invoice date (YYYY-MM-DD)',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['listInvoices'],
 					},
 				},
@@ -349,6 +424,7 @@ export class PayPal implements INodeType {
 				description: 'End invoice date (YYYY-MM-DD)',
 				displayOptions: {
 					show: {
+						resource: ['invoice'],
 						operation: ['listInvoices'],
 					},
 				},
@@ -423,7 +499,8 @@ export class PayPal implements INodeType {
 
 					let firstResponse: any;
 					let firstRequest: any;
-					const includeRawData = this.getNodeParameter('includeRawData', 0) as boolean;
+					const options = this.getNodeParameter('options', 0) as IDataObject;
+					const includeRawData = options.includeRawData as boolean;
 
 					do {
 						const { response, request } = await requestWithRetry.call(this, {
@@ -477,7 +554,8 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					const includeRawData = this.getNodeParameter('includeRawData', itemIndex) as boolean;
+					const options = this.getNodeParameter('options', itemIndex) as IDataObject;
+					const includeRawData = options.includeRawData as boolean;
 
 					const responseData: any = { ...response };
 					if (includeRawData) {
@@ -506,7 +584,8 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					const includeRawData = this.getNodeParameter('includeRawData', itemIndex) as boolean;
+					const options = this.getNodeParameter('options', itemIndex) as IDataObject;
+					const includeRawData = options.includeRawData as boolean;
 
 					const responseData: any = { ...response };
 					if (includeRawData) {
@@ -532,7 +611,8 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					const includeRawData = this.getNodeParameter('includeRawData', itemIndex) as boolean;
+					const options = this.getNodeParameter('options', itemIndex) as IDataObject;
+					const includeRawData = options.includeRawData as boolean;
 
 					const responseData: any = {
 						success: true,
@@ -554,7 +634,8 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					const includeRawData = this.getNodeParameter('includeRawData', 0) as boolean;
+					const options = this.getNodeParameter('options', 0) as IDataObject;
+					const includeRawData = options.includeRawData as boolean;
 
 					const responseData: any = { ...response };
 					if (includeRawData) {
@@ -610,7 +691,8 @@ export class PayPal implements INodeType {
 						url = nextLink ? nextLink.href : null;
 					} while (returnAll && url);
 
-					const includeRawData = this.getNodeParameter('includeRawData', 0) as boolean;
+					const options = this.getNodeParameter('options', 0) as IDataObject;
+					const includeRawData = options.includeRawData as boolean;
 
 					for (const item of results) {
 						const responseData: any = { ...item };
