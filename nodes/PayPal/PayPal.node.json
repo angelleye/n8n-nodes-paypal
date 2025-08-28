@@ -1,0 +1,24 @@
+{
+	"node": "n8n-nodes-paypal.payPal",
+	"nodeVersion": "1.0",
+	"codename": "payPal",
+	"categories": [
+		"Finance"
+	],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://developer.paypal.com/api/rest/"
+			}
+		],
+		"credentialDocumentation": [
+			{
+				"url": "https://developer.paypal.com/api/rest/authentication/"
+			}
+		]
+	},
+	"alias": ["PayPal", "payments", "invoice", "transaction"],
+	"subcategories": {
+		"Finance": ["Payment Processing", "Invoicing"]
+	}
+}
