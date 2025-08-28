@@ -65,6 +65,13 @@ export class PayPal implements INodeType {
 				default: 'getTransactions',
 			},
 			{
+				displayName: 'Include Raw PayPal Data',
+				name: 'includeRawData',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to include raw_request and raw_response in the output data',
+			},
+			{
 				displayName: 'Return All',
 				name: 'returnAll',
 				type: 'boolean',
@@ -416,6 +423,8 @@ export class PayPal implements INodeType {
 
 					let firstResponse: any;
 					let firstRequest: any;
+					const includeRawData = this.getNodeParameter('includeRawData', 0) as boolean;
+
 					do {
 						const { response, request } = await requestWithRetry.call(this, {
 							method: 'GET',
@@ -436,31 +445,21 @@ export class PayPal implements INodeType {
 					} while (returnAll && url);
 
 					for (const detail of results) {
-						returnData.push({
-							json: {
-								...detail,
-								raw_request: firstRequest,
-								raw_response: firstResponse,
-							},
-						});
+						const responseData: any = { ...detail };
+						if (includeRawData) {
+							responseData.raw_request = firstRequest;
+							responseData.raw_response = firstResponse;
+						}
+						returnData.push({ json: responseData });
 					}
 
 					if (returnData.length === 0 && firstResponse) {
-						returnData.push({
-							json: {
-								...firstResponse,
-								raw_request: firstRequest,
-								raw_response: firstResponse,
-							},
-						});
-					}
-
-					for (const detail of results) {
-						returnData.push({ json: detail });
-					}
-
-					if (returnData.length === 0 && firstResponse) {
-						returnData.push({ json: firstResponse });
+						const responseData: any = { ...firstResponse };
+						if (includeRawData) {
+							responseData.raw_request = firstRequest;
+							responseData.raw_response = firstResponse;
+						}
+						returnData.push({ json: responseData });
 					}
 				} else if (operation === 'createInvoice') {
 					const invoiceJson = this.getNodeParameter('invoice', itemIndex) as string;
@@ -478,13 +477,15 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({
-						json: {
-							...response,
-							raw_request: request,
-							raw_response: response,
-						},
-					});
+					const includeRawData = this.getNodeParameter('includeRawData', itemIndex) as boolean;
+
+					const responseData: any = { ...response };
+					if (includeRawData) {
+						responseData.raw_request = request;
+						responseData.raw_response = response;
+					}
+
+					returnData.push({ json: responseData });
 				} else if (operation === 'sendInvoice') {
 					const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
 					const additionalParamsJson = this.getNodeParameter(
@@ -494,7 +495,9 @@ export class PayPal implements INodeType {
 					let body: IDataObject = {};
 					try {
 						body = JSON.parse(additionalParamsJson);
-					} catch {}
+					} catch {
+						// Empty body if JSON parsing fails
+					}
 					const { response, request } = await requestWithRetry.call(this, {
 						method: 'POST',
 						url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}/send`,
@@ -503,13 +506,15 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({
-						json: {
-							...response,
-							raw_request: request,
-							raw_response: response,
-						},
-					});
+					const includeRawData = this.getNodeParameter('includeRawData', itemIndex) as boolean;
+
+					const responseData: any = { ...response };
+					if (includeRawData) {
+						responseData.raw_request = request;
+						responseData.raw_response = response;
+					}
+
+					returnData.push({ json: responseData });
 				} else if (operation === 'updateInvoice') {
 					const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
 					const patchesJson = this.getNodeParameter('patches', itemIndex) as string;
@@ -527,14 +532,19 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({
-						json: {
-							success: true,
-							invoice_id: invoiceId,
-							raw_request: request,
-							raw_response: response,
-						},
-					});
+					const includeRawData = this.getNodeParameter('includeRawData', itemIndex) as boolean;
+
+					const responseData: any = {
+						success: true,
+						invoice_id: invoiceId,
+					};
+
+					if (includeRawData) {
+						responseData.raw_request = request;
+						responseData.raw_response = response;
+					}
+
+					returnData.push({ json: responseData });
 				} else if (operation === 'getInvoice') {
 					const invoiceId = this.getNodeParameter('invoiceId', 0) as string;
 					const { response, request } = await requestWithRetry.call(this, {
@@ -544,13 +554,15 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({
-						json: {
-							...response,
-							raw_request: request,
-							raw_response: response,
-						},
-					});
+					const includeRawData = this.getNodeParameter('includeRawData', 0) as boolean;
+
+					const responseData: any = { ...response };
+					if (includeRawData) {
+						responseData.raw_request = request;
+						responseData.raw_response = response;
+					}
+
+					returnData.push({ json: responseData });
 				} else if (operation === 'listInvoices') {
 					const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
 					let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 20;
@@ -597,15 +609,18 @@ export class PayPal implements INodeType {
 						const nextLink = response.links?.find((l: any) => l.rel === 'next');
 						url = nextLink ? nextLink.href : null;
 					} while (returnAll && url);
+
+					const includeRawData = this.getNodeParameter('includeRawData', 0) as boolean;
+
 					for (const item of results) {
-						returnData.push({
-							json: {
-								...item,
-								raw_request: firstRequest,
-								raw_response: firstResponse,
-							},
-						});
-					}				}
+						const responseData: any = { ...item };
+						if (includeRawData) {
+							responseData.raw_request = firstRequest;
+							responseData.raw_response = firstResponse;
+						}
+						returnData.push({ json: responseData });
+					}
+				}
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({ json: { error: error.message }, pairedItem: { item: itemIndex } });
