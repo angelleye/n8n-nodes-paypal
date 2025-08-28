@@ -413,7 +413,7 @@ export class PayPal implements INodeType {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/x-www-form-urlencoded',
-									  'Partner-Attribution-Id': 'ANGELLFREEInc_SP',
+									  'Partner-Attribution-Id': 'ANGELLFREEInc_SP_n8n',
                 },
                 auth: {
                     username: credentials.clientId as string,
