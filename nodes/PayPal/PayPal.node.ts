@@ -415,16 +415,9 @@ export class PayPal implements INodeType {
 					let results: any[] = [];
 
 					let firstResponse: any;
+					let firstRequest: any;
 					do {
-						/**
-						 * TEMP DEBUG LOG
-						 */
-						console.log('PayPal Get Transactions Request:', {
-							url: `${apiUrl}${url}`,
-							headers: { Authorization: `Bearer ${accessToken}` },
-						});
-
-						const response = await requestWithRetry.call(this, {
+						const { response, request } = await requestWithRetry.call(this, {
 							method: 'GET',
 							url: `${apiUrl}${url}`,
 							headers: {
@@ -432,17 +425,35 @@ export class PayPal implements INodeType {
 							},
 						});
 
-						/**
-						 * TEMP DEBUG LOG
-						 */
-						console.log('PayPal Get Transactions Response:', response);
-
-						if (!firstResponse) firstResponse = response;
+						if (!firstResponse) {
+							firstResponse = response;
+							firstRequest = request;
+						}
 
 						results = results.concat(response.transaction_details || []);
 						const nextLink = response.links?.find((l: any) => l.rel === 'next');
 						url = nextLink ? nextLink.href : null;
 					} while (returnAll && url);
+
+					for (const detail of results) {
+						returnData.push({
+							json: {
+								...detail,
+								raw_request: firstRequest,
+								raw_response: firstResponse,
+							},
+						});
+					}
+
+					if (returnData.length === 0 && firstResponse) {
+						returnData.push({
+							json: {
+								...firstResponse,
+								raw_request: firstRequest,
+								raw_response: firstResponse,
+							},
+						});
+					}
 
 					for (const detail of results) {
 						returnData.push({ json: detail });
@@ -459,7 +470,7 @@ export class PayPal implements INodeType {
 					} catch {
 						throw new NodeOperationError(this.getNode(), 'Invalid JSON for invoice', { itemIndex });
 					}
-					const response = await requestWithRetry.call(this, {
+					const { response, request } = await requestWithRetry.call(this, {
 						method: 'POST',
 						url: `${apiUrl}/v2/invoicing/invoices`,
 						body,
@@ -467,7 +478,13 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({ json: response });
+					returnData.push({
+						json: {
+							...response,
+							raw_request: request,
+							raw_response: response,
+						},
+					});
 				} else if (operation === 'sendInvoice') {
 					const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
 					const additionalParamsJson = this.getNodeParameter(
@@ -478,7 +495,7 @@ export class PayPal implements INodeType {
 					try {
 						body = JSON.parse(additionalParamsJson);
 					} catch {}
-					const response = await requestWithRetry.call(this, {
+					const { response, request } = await requestWithRetry.call(this, {
 						method: 'POST',
 						url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}/send`,
 						body,
@@ -486,7 +503,13 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({ json: response });
+					returnData.push({
+						json: {
+							...response,
+							raw_request: request,
+							raw_response: response,
+						},
+					});
 				} else if (operation === 'updateInvoice') {
 					const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
 					const patchesJson = this.getNodeParameter('patches', itemIndex) as string;
@@ -496,7 +519,7 @@ export class PayPal implements INodeType {
 					} catch {
 						throw new NodeOperationError(this.getNode(), 'Invalid JSON for patches', { itemIndex });
 					}
-					await requestWithRetry.call(this, {
+					const { response, request } = await requestWithRetry.call(this, {
 						method: 'PATCH',
 						url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}`,
 						body,
@@ -504,17 +527,30 @@ export class PayPal implements INodeType {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({ json: { success: true, invoice_id: invoiceId } });
+					returnData.push({
+						json: {
+							success: true,
+							invoice_id: invoiceId,
+							raw_request: request,
+							raw_response: response,
+						},
+					});
 				} else if (operation === 'getInvoice') {
 					const invoiceId = this.getNodeParameter('invoiceId', 0) as string;
-					const response = await requestWithRetry.call(this, {
+					const { response, request } = await requestWithRetry.call(this, {
 						method: 'GET',
 						url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}`,
 						headers: {
 							Authorization: `Bearer ${accessToken}`,
 						},
 					});
-					returnData.push({ json: response });
+					returnData.push({
+						json: {
+							...response,
+							raw_request: request,
+							raw_response: response,
+						},
+					});
 				} else if (operation === 'listInvoices') {
 					const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
 					let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 20;
@@ -540,23 +576,36 @@ export class PayPal implements INodeType {
 
 					let url = `/v2/invoicing/invoices?${new URLSearchParams(qs as any).toString()}`;
 					let results: any[] = [];
+
+					let firstResponse: any;
+					let firstRequest: any;
 					do {
-						const response = await requestWithRetry.call(this, {
+						const { response, request } = await requestWithRetry.call(this, {
 							method: 'GET',
 							url: `${apiUrl}${url}`,
 							headers: {
 								Authorization: `Bearer ${accessToken}`,
 							},
 						});
+
+						if (!firstResponse) {
+							firstResponse = response;
+							firstRequest = request;
+						}
+
 						results = results.concat(response.items || []);
 						const nextLink = response.links?.find((l: any) => l.rel === 'next');
 						url = nextLink ? nextLink.href : null;
 					} while (returnAll && url);
-
 					for (const item of results) {
-						returnData.push({ json: item });
-					}
-				}
+						returnData.push({
+							json: {
+								...item,
+								raw_request: firstRequest,
+								raw_response: firstResponse,
+							},
+						});
+					}				}
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({ json: { error: error.message }, pairedItem: { item: itemIndex } });
@@ -574,9 +623,25 @@ async function requestWithRetry(
 	this: IExecuteFunctions,
 	options: IHttpRequestOptions,
 	retries = 3,
-): Promise<any> {
+): Promise<{ response: any; request: any }> {
+	const requestInfo = {
+		method: options.method,
+		url: options.url,
+		headers: { ...options.headers },
+		body: options.body,
+	};
+
+	// Remove sensitive auth header from logged request
+	if (requestInfo.headers.Authorization) {
+		requestInfo.headers.Authorization = '[REDACTED]';
+	}
+
 	try {
-		return await this.helpers.httpRequest(options);
+		const response = await this.helpers.httpRequest(options);
+		return {
+			response,
+			request: requestInfo,
+		};
 	} catch (error) {
 		if (error.response?.status === 429 && retries > 0) {
 			const backoff = Math.pow(2, 4 - retries) * 1000;
