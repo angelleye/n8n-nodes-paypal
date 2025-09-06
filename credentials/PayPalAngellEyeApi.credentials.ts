@@ -2,7 +2,7 @@ import { ICredentialType, INodeProperties } from 'n8n-workflow';
 
 export class PayPalAngellEyeApi implements ICredentialType {
 	name = 'payPalAngellEyeApi';
-	displayName = 'PayPal API (Angell EYE)';
+	displayName = 'PayPal (Angell EYE) API';
 	documentationUrl = 'https://developer.paypal.com/api/rest/';
 	properties: INodeProperties[] = [
 		{

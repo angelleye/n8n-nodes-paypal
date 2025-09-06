@@ -437,6 +437,7 @@ export class PayPal implements INodeType {
 		const returnData: INodeExecutionData[] = [];
 		const length = items.length;
 		const operation = this.getNodeParameter('operation', 0) as string;
+		const resource = this.getNodeParameter('resource', 0) as string;
 
 		const credentials = (await this.getCredentials('payPalAngellEyeApi')) as IDataObject;
 		const environment = credentials.environment as string;
@@ -444,31 +445,11 @@ export class PayPal implements INodeType {
 		const apiUrl = `https://${baseUrl}`;
 
 		const scope =
-			operation === 'getTransactions'
+			resource === 'transaction'
 				? 'https://uri.paypal.com/services/reporting/search/read'
 				: 'https://uri.paypal.com/services/invoicing';
 
-		let accessToken;
-		try {
-			const tokenOptions: IHttpRequestOptions = {
-				method: 'POST',
-				url: `${apiUrl}/v1/oauth2/token`,
-				headers: {
-					Accept: 'application/json',
-					'Content-Type': 'application/x-www-form-urlencoded',
-					'Partner-Attribution-Id': 'ANGELLFREEInc_SP_n8n',
-				},
-				auth: {
-					username: credentials.clientId as string,
-					password: credentials.clientSecret as string,
-				},
-				body: `grant_type=client_credentials&scope=${encodeURIComponent(scope)}`,
-			};
-			const tokenResponse = await this.helpers.httpRequest(tokenOptions);
-			accessToken = tokenResponse.access_token;
-		} catch (error) {
-			throw new NodeApiError(this.getNode(), error);
-		}
+		const accessToken = await getAccessToken.call(this, credentials, scope);
 
 		for (let itemIndex = 0; itemIndex < length; itemIndex++) {
 			if (['getTransactions', 'listInvoices', 'getInvoice'].includes(operation) && itemIndex > 0) {
@@ -713,6 +694,37 @@ export class PayPal implements INodeType {
 		}
 
 		return [returnData];
+	}
+}
+
+async function getAccessToken(
+	this: IExecuteFunctions,
+	credentials: IDataObject,
+	scope: string,
+): Promise<string> {
+	const environment = credentials.environment as string;
+	const baseUrl = environment === 'sandbox' ? 'api.sandbox.paypal.com' : 'api.paypal.com';
+	const apiUrl = `https://${baseUrl}`;
+
+	try {
+		const tokenOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${apiUrl}/v1/oauth2/token`,
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Partner-Attribution-Id': 'ANGELLFREEInc_SP_n8n',
+			},
+			auth: {
+				username: credentials.clientId as string,
+				password: credentials.clientSecret as string,
+			},
+			body: `grant_type=client_credentials&scope=${encodeURIComponent(scope)}`,
+		};
+		const tokenResponse = await this.helpers.httpRequest(tokenOptions);
+		return tokenResponse.access_token;
+	} catch (error) {
+		throw new NodeApiError(this.getNode(), error);
 	}
 }
 
