@@ -452,238 +452,24 @@ export class PayPal implements INodeType {
 		const accessToken = await getAccessToken.call(this, credentials, scope);
 
 		for (let itemIndex = 0; itemIndex < length; itemIndex++) {
-			if (['getTransactions', 'listInvoices', 'getInvoice'].includes(operation) && itemIndex > 0) {
-				continue; // Run list/get operations only once
-			}
 			try {
+				let operationData: INodeExecutionData[] = [];
 				if (operation === 'getTransactions') {
-					const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
-					let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 100;
-					pageSize = Math.min(pageSize, 500);
-					const startDate = this.getNodeParameter('startDate', 0) as string;
-					const endDate = this.getNodeParameter('endDate', 0) as string;
-					const transactionId = this.getNodeParameter('transactionId', 0) as string;
-					const fields = this.getNodeParameter('fields', 0) as string[];
-					const page = returnAll ? 1 : (this.getNodeParameter('page', 0) as number);
-
-					const qs: IDataObject = {
-						start_date: startDate.endsWith('Z') ? startDate : `${startDate}Z`,
-						fields: fields.join(','),
-						page_size: pageSize.toString(),
-					};
-					if (endDate) qs.end_date = endDate.endsWith('Z') ? endDate : `${endDate}Z`;
-					if (transactionId) qs.transaction_id = transactionId;
-					if (!returnAll) qs.page = page.toString();
-
-					let url = `/v1/reporting/transactions?${new URLSearchParams(qs as any).toString()}`;
-					let results: any[] = [];
-
-					let firstResponse: any;
-					let firstRequest: any;
-					const options = this.getNodeParameter('options', 0) as IDataObject;
-					const includeRawData = options.includeRawData as boolean;
-
-					do {
-						const { response, request } = await requestWithRetry.call(this, {
-							method: 'GET',
-							url: `${apiUrl}${url}`,
-							headers: {
-								Authorization: `Bearer ${accessToken}`,
-							},
-						});
-
-						if (!firstResponse) {
-							firstResponse = response;
-							firstRequest = request;
-						}
-
-						results = results.concat(response.transaction_details || []);
-						const nextLink = response.links?.find((l: any) => l.rel === 'next');
-						url = nextLink ? nextLink.href : null;
-					} while (returnAll && url);
-
-					for (const detail of results) {
-						const responseData: any = { ...detail };
-						if (includeRawData) {
-							responseData.raw_request = firstRequest;
-							responseData.raw_response = firstResponse;
-						}
-						returnData.push({ json: responseData });
-					}
-
-					if (returnData.length === 0 && firstResponse) {
-						const responseData: any = { ...firstResponse };
-						if (includeRawData) {
-							responseData.raw_request = firstRequest;
-							responseData.raw_response = firstResponse;
-						}
-						returnData.push({ json: responseData });
-					}
+					if (itemIndex > 0) continue; // Run only once
+					operationData = await handleGetTransactions.call(this, accessToken, apiUrl);
 				} else if (operation === 'createInvoice') {
-					const invoiceJson = this.getNodeParameter('invoice', itemIndex) as string;
-					let body: IDataObject;
-					try {
-						body = JSON.parse(invoiceJson);
-					} catch {
-						throw new NodeOperationError(this.getNode(), 'Invalid JSON for invoice', { itemIndex });
-					}
-					const { response, request } = await requestWithRetry.call(this, {
-						method: 'POST',
-						url: `${apiUrl}/v2/invoicing/invoices`,
-						body,
-						headers: {
-							Authorization: `Bearer ${accessToken}`,
-						},
-					});
-					const options = this.getNodeParameter('options', itemIndex) as IDataObject;
-					const includeRawData = options.includeRawData as boolean;
-
-					const responseData: any = { ...response };
-					if (includeRawData) {
-						responseData.raw_request = request;
-						responseData.raw_response = response;
-					}
-
-					returnData.push({ json: responseData });
+					operationData = await handleCreateInvoice.call(this, itemIndex, accessToken, apiUrl);
 				} else if (operation === 'sendInvoice') {
-					const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
-					const additionalParamsJson = this.getNodeParameter(
-						'additionalParams',
-						itemIndex,
-					) as string;
-					let body: IDataObject = {};
-					try {
-						body = JSON.parse(additionalParamsJson);
-					} catch {
-						// Empty body if JSON parsing fails
-					}
-					const { response, request } = await requestWithRetry.call(this, {
-						method: 'POST',
-						url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}/send`,
-						body,
-						headers: {
-							Authorization: `Bearer ${accessToken}`,
-						},
-					});
-					const options = this.getNodeParameter('options', itemIndex) as IDataObject;
-					const includeRawData = options.includeRawData as boolean;
-
-					const responseData: any = { ...response };
-					if (includeRawData) {
-						responseData.raw_request = request;
-						responseData.raw_response = response;
-					}
-
-					returnData.push({ json: responseData });
+					operationData = await handleSendInvoice.call(this, itemIndex, accessToken, apiUrl);
 				} else if (operation === 'updateInvoice') {
-					const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
-					const patchesJson = this.getNodeParameter('patches', itemIndex) as string;
-					let body: any[];
-					try {
-						body = JSON.parse(patchesJson);
-					} catch {
-						throw new NodeOperationError(this.getNode(), 'Invalid JSON for patches', { itemIndex });
-					}
-					const { response, request } = await requestWithRetry.call(this, {
-						method: 'PATCH',
-						url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}`,
-						body,
-						headers: {
-							Authorization: `Bearer ${accessToken}`,
-						},
-					});
-					const options = this.getNodeParameter('options', itemIndex) as IDataObject;
-					const includeRawData = options.includeRawData as boolean;
-
-					const responseData: any = {
-						success: true,
-						invoice_id: invoiceId,
-					};
-
-					if (includeRawData) {
-						responseData.raw_request = request;
-						responseData.raw_response = response;
-					}
-
-					returnData.push({ json: responseData });
+					operationData = await handleUpdateInvoice.call(this, itemIndex, accessToken, apiUrl);
 				} else if (operation === 'getInvoice') {
-					const invoiceId = this.getNodeParameter('invoiceId', 0) as string;
-					const { response, request } = await requestWithRetry.call(this, {
-						method: 'GET',
-						url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}`,
-						headers: {
-							Authorization: `Bearer ${accessToken}`,
-						},
-					});
-					const options = this.getNodeParameter('options', 0) as IDataObject;
-					const includeRawData = options.includeRawData as boolean;
-
-					const responseData: any = { ...response };
-					if (includeRawData) {
-						responseData.raw_request = request;
-						responseData.raw_response = response;
-					}
-
-					returnData.push({ json: responseData });
+					if (itemIndex > 0) continue; // Run only once
+					operationData = await handleGetInvoice.call(this, accessToken, apiUrl);
 				} else if (operation === 'listInvoices') {
-					const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
-					let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 20;
-					pageSize = Math.min(pageSize, 100);
-					const page = returnAll ? 1 : (this.getNodeParameter('page', 0) as number);
-					const totalRequired = this.getNodeParameter('totalRequired', 0) as boolean;
-					const fieldsInvoices = this.getNodeParameter('fieldsInvoices', 0) as string;
-					const status = this.getNodeParameter('status', 0) as string[];
-					const recipientEmail = this.getNodeParameter('recipientEmail', 0) as string;
-					const startInvoiceDate = this.getNodeParameter('startInvoiceDate', 0) as string;
-					const endInvoiceDate = this.getNodeParameter('endInvoiceDate', 0) as string;
-
-					const qs: IDataObject = {
-						page_size: pageSize.toString(),
-						total_required: totalRequired.toString(),
-					};
-					if (fieldsInvoices) qs.fields = fieldsInvoices;
-					if (status.length) qs.status = status.join(',');
-					if (recipientEmail) qs.recipient_email = recipientEmail;
-					if (startInvoiceDate) qs.start_invoice_date = startInvoiceDate.split('T')[0];
-					if (endInvoiceDate) qs.end_invoice_date = endInvoiceDate.split('T')[0];
-					if (!returnAll) qs.page = page.toString();
-
-					let url = `/v2/invoicing/invoices?${new URLSearchParams(qs as any).toString()}`;
-					let results: any[] = [];
-
-					let firstResponse: any;
-					let firstRequest: any;
-					do {
-						const { response, request } = await requestWithRetry.call(this, {
-							method: 'GET',
-							url: `${apiUrl}${url}`,
-							headers: {
-								Authorization: `Bearer ${accessToken}`,
-							},
-						});
-
-						if (!firstResponse) {
-							firstResponse = response;
-							firstRequest = request;
-						}
-
-						results = results.concat(response.items || []);
-						const nextLink = response.links?.find((l: any) => l.rel === 'next');
-						url = nextLink ? nextLink.href : null;
-					} while (returnAll && url);
-
-					const options = this.getNodeParameter('options', 0) as IDataObject;
-					const includeRawData = options.includeRawData as boolean;
-
-					for (const item of results) {
-						const responseData: any = { ...item };
-						if (includeRawData) {
-							responseData.raw_request = firstRequest;
-							responseData.raw_response = firstResponse;
-						}
-						returnData.push({ json: responseData });
-					}
-				}
+					if (itemIndex > 0) continue; // Run only once
+					operationData = await handleListInvoices.call(this, accessToken, apiUrl);
+				}				returnData.push(...operationData);
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({ json: { error: error.message }, pairedItem: { item: itemIndex } });
@@ -695,6 +481,275 @@ export class PayPal implements INodeType {
 
 		return [returnData];
 	}
+}
+
+async function handleGetTransactions(
+	this: IExecuteFunctions,
+	accessToken: string,
+	apiUrl: string,
+): Promise<INodeExecutionData[]> {
+	const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
+	let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 100;
+	pageSize = Math.min(pageSize, 500);
+	const startDate = this.getNodeParameter('startDate', 0) as string;
+	const endDate = this.getNodeParameter('endDate', 0) as string;
+	const transactionId = this.getNodeParameter('transactionId', 0) as string;
+	const fields = this.getNodeParameter('fields', 0) as string[];
+	const page = returnAll ? 1 : (this.getNodeParameter('page', 0) as number);
+
+	const qs: IDataObject = {
+		start_date: startDate.endsWith('Z') ? startDate : `${startDate}Z`,
+		fields: fields.join(','),
+		page_size: pageSize.toString(),
+	};
+	if (endDate) qs.end_date = endDate.endsWith('Z') ? endDate : `${endDate}Z`;
+	if (transactionId) qs.transaction_id = transactionId;
+	if (!returnAll) qs.page = page.toString();
+
+	let url = `/v1/reporting/transactions?${new URLSearchParams(qs as any).toString()}`;
+	let results: any[] = [];
+
+	let firstResponse: any;
+	let firstRequest: any;
+	const options = this.getNodeParameter('options', 0) as IDataObject;
+	const includeRawData = options.includeRawData as boolean;
+
+	do {
+		const { response, request } = await requestWithRetry.call(this, {
+			method: 'GET',
+			url: `${apiUrl}${url}`,
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (!firstResponse) {
+			firstResponse = response;
+			firstRequest = request;
+		}
+
+		results = results.concat(response.transaction_details || []);
+		const nextLink = response.links?.find((l: any) => l.rel === 'next');
+		url = nextLink ? nextLink.href : null;
+	} while (returnAll && url);
+
+	const returnData: INodeExecutionData[] = [];
+	for (const detail of results) {
+		const responseData: any = { ...detail };
+		if (includeRawData) {
+			responseData.raw_request = firstRequest;
+			responseData.raw_response = firstResponse;
+		}
+		returnData.push({ json: responseData });
+	}
+
+	if (returnData.length === 0 && firstResponse) {
+		const responseData: any = { ...firstResponse };
+		if (includeRawData) {
+			responseData.raw_request = firstRequest;
+			responseData.raw_response = firstResponse;
+		}
+		returnData.push({ json: responseData });
+	}
+
+	return returnData;
+}
+
+async function handleCreateInvoice(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	accessToken: string,
+	apiUrl: string,
+): Promise<INodeExecutionData[]> {
+	const invoiceJson = this.getNodeParameter('invoice', itemIndex) as string;
+	let body: IDataObject;
+	try {
+		body = JSON.parse(invoiceJson);
+	} catch {
+		throw new NodeOperationError(this.getNode(), 'Invalid JSON for invoice', { itemIndex });
+	}
+	const { response, request } = await requestWithRetry.call(this, {
+		method: 'POST',
+		url: `${apiUrl}/v2/invoicing/invoices`,
+		body,
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+		},
+	});
+	const options = this.getNodeParameter('options', itemIndex) as IDataObject;
+	const includeRawData = options.includeRawData as boolean;
+
+	const responseData: any = { ...response };
+	if (includeRawData) {
+		responseData.raw_request = request;
+		responseData.raw_response = response;
+	}
+
+	return [{ json: responseData }];
+}
+
+async function handleSendInvoice(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	accessToken: string,
+	apiUrl: string,
+): Promise<INodeExecutionData[]> {
+	const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
+	const additionalParamsJson = this.getNodeParameter('additionalParams', itemIndex) as string;
+	let body: IDataObject = {};
+	try {
+		body = JSON.parse(additionalParamsJson);
+	} catch {
+		// Empty body if JSON parsing fails
+	}
+	const { response, request } = await requestWithRetry.call(this, {
+		method: 'POST',
+		url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}/send`,
+		body,
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+		},
+	});
+	const options = this.getNodeParameter('options', itemIndex) as IDataObject;
+	const includeRawData = options.includeRawData as boolean;
+
+	const responseData: any = { ...response };
+	if (includeRawData) {
+		responseData.raw_request = request;
+		responseData.raw_response = response;
+	}
+
+	return [{ json: responseData }];
+}
+
+async function handleUpdateInvoice(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	accessToken: string,
+	apiUrl: string,
+): Promise<INodeExecutionData[]> {
+	const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
+	const patchesJson = this.getNodeParameter('patches', itemIndex) as string;
+	let body: any[];
+	try {
+		body = JSON.parse(patchesJson);
+	} catch {
+		throw new NodeOperationError(this.getNode(), 'Invalid JSON for patches', { itemIndex });
+	}
+	const { response, request } = await requestWithRetry.call(this, {
+		method: 'PATCH',
+		url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}`,
+		body,
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+		},
+	});
+	const options = this.getNodeParameter('options', itemIndex) as IDataObject;
+	const includeRawData = options.includeRawData as boolean;
+
+	const responseData: any = {
+		success: true,
+		invoice_id: invoiceId,
+	};
+
+	if (includeRawData) {
+		responseData.raw_request = request;
+		responseData.raw_response = response;
+	}
+
+	return [{ json: responseData }];
+}
+
+async function handleGetInvoice(
+	this: IExecuteFunctions,
+	accessToken: string,
+	apiUrl: string,
+): Promise<INodeExecutionData[]> {
+	const invoiceId = this.getNodeParameter('invoiceId', 0) as string;
+	const { response, request } = await requestWithRetry.call(this, {
+		method: 'GET',
+		url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}`,
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+		},
+	});
+	const options = this.getNodeParameter('options', 0) as IDataObject;
+	const includeRawData = options.includeRawData as boolean;
+
+	const responseData: any = { ...response };
+	if (includeRawData) {
+		responseData.raw_request = request;
+		responseData.raw_response = response;
+	}
+
+	return [{ json: responseData }];
+}
+
+async function handleListInvoices(
+	this: IExecuteFunctions,
+	accessToken: string,
+	apiUrl: string,
+): Promise<INodeExecutionData[]> {
+	const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
+	let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 20;
+	pageSize = Math.min(pageSize, 100);
+	const page = returnAll ? 1 : (this.getNodeParameter('page', 0) as number);
+	const totalRequired = this.getNodeParameter('totalRequired', 0) as boolean;
+	const fieldsInvoices = this.getNodeParameter('fieldsInvoices', 0) as string;
+	const status = this.getNodeParameter('status', 0) as string[];
+	const recipientEmail = this.getNodeParameter('recipientEmail', 0) as string;
+	const startInvoiceDate = this.getNodeParameter('startInvoiceDate', 0) as string;
+	const endInvoiceDate = this.getNodeParameter('endInvoiceDate', 0) as string;
+
+	const qs: IDataObject = {
+		page_size: pageSize.toString(),
+		total_required: totalRequired.toString(),
+	};
+	if (fieldsInvoices) qs.fields = fieldsInvoices;
+	if (status.length) qs.status = status.join(',');
+	if (recipientEmail) qs.recipient_email = recipientEmail;
+	if (startInvoiceDate) qs.start_invoice_date = startInvoiceDate.split('T')[0];
+	if (endInvoiceDate) qs.end_invoice_date = endInvoiceDate.split('T')[0];
+	if (!returnAll) qs.page = page.toString();
+
+	let url = `/v2/invoicing/invoices?${new URLSearchParams(qs as any).toString()}`;
+	let results: any[] = [];
+
+	let firstResponse: any;
+	let firstRequest: any;
+	do {
+		const { response, request } = await requestWithRetry.call(this, {
+			method: 'GET',
+			url: `${apiUrl}${url}`,
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (!firstResponse) {
+			firstResponse = response;
+			firstRequest = request;
+		}
+
+		results = results.concat(response.items || []);
+		const nextLink = response.links?.find((l: any) => l.rel === 'next');
+		url = nextLink ? nextLink.href : null;
+	} while (returnAll && url);
+
+	const options = this.getNodeParameter('options', 0) as IDataObject;
+	const includeRawData = options.includeRawData as boolean;
+
+	const returnData: INodeExecutionData[] = [];
+	for (const item of results) {
+		const responseData: any = { ...item };
+		if (includeRawData) {
+			responseData.raw_request = firstRequest;
+			responseData.raw_response = firstResponse;
+		}
+		returnData.push({ json: responseData });
+	}
+
+	return returnData;
 }
 
 async function getAccessToken(
