@@ -456,19 +456,19 @@ export class PayPal implements INodeType {
 				let operationData: INodeExecutionData[] = [];
 				if (operation === 'getTransactions') {
 					if (itemIndex > 0) continue; // Run only once
-					operationData = await handleGetTransactions.call(this, accessToken, apiUrl);
+					operationData = await getTransactions.call(this, accessToken, apiUrl);
 				} else if (operation === 'createInvoice') {
-					operationData = await handleCreateInvoice.call(this, itemIndex, accessToken, apiUrl);
+					operationData = await createInvoice.call(this, itemIndex, accessToken, apiUrl);
 				} else if (operation === 'sendInvoice') {
-					operationData = await handleSendInvoice.call(this, itemIndex, accessToken, apiUrl);
+					operationData = await sendInvoice.call(this, itemIndex, accessToken, apiUrl);
 				} else if (operation === 'updateInvoice') {
-					operationData = await handleUpdateInvoice.call(this, itemIndex, accessToken, apiUrl);
+					operationData = await updateInvoice.call(this, itemIndex, accessToken, apiUrl);
 				} else if (operation === 'getInvoice') {
 					if (itemIndex > 0) continue; // Run only once
-					operationData = await handleGetInvoice.call(this, accessToken, apiUrl);
+					operationData = await getInvoice.call(this, accessToken, apiUrl);
 				} else if (operation === 'listInvoices') {
 					if (itemIndex > 0) continue; // Run only once
-					operationData = await handleListInvoices.call(this, accessToken, apiUrl);
+					operationData = await listInvoices.call(this, accessToken, apiUrl);
 				}				returnData.push(...operationData);
 			} catch (error) {
 				if (this.continueOnFail()) {
@@ -483,7 +483,7 @@ export class PayPal implements INodeType {
 	}
 }
 
-async function handleGetTransactions(
+async function getTransactions(
 	this: IExecuteFunctions,
 	accessToken: string,
 	apiUrl: string,
@@ -555,7 +555,7 @@ async function handleGetTransactions(
 	return returnData;
 }
 
-async function handleCreateInvoice(
+async function createInvoice(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	accessToken: string,
@@ -588,7 +588,7 @@ async function handleCreateInvoice(
 	return [{ json: responseData }];
 }
 
-async function handleSendInvoice(
+async function sendInvoice(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	accessToken: string,
@@ -622,7 +622,7 @@ async function handleSendInvoice(
 	return [{ json: responseData }];
 }
 
-async function handleUpdateInvoice(
+async function updateInvoice(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	accessToken: string,
@@ -660,7 +660,7 @@ async function handleUpdateInvoice(
 	return [{ json: responseData }];
 }
 
-async function handleGetInvoice(
+async function getInvoice(
 	this: IExecuteFunctions,
 	accessToken: string,
 	apiUrl: string,
@@ -685,7 +685,7 @@ async function handleGetInvoice(
 	return [{ json: responseData }];
 }
 
-async function handleListInvoices(
+async function listInvoices(
 	this: IExecuteFunctions,
 	accessToken: string,
 	apiUrl: string,
