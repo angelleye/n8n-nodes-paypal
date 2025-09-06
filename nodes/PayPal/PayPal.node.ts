@@ -94,136 +94,12 @@ const nodeProperties: INodeProperties[] = [
 		default: 'createInvoice',
 	},
 	{
-		displayName: 'Options',
-		name: 'options',
-		type: 'collection',
-		placeholder: 'Add Option',
-		default: {},
-		options: [
-			{
-				displayName: 'Include Raw PayPal Data',
-				name: 'includeRawData',
-				type: 'boolean',
-				default: false,
-				description:
-					'Whether to include raw_request and raw_response in the output data for debugging',
-			},
-		],
-	},
-	{
-		displayName: 'Return All',
-		name: 'returnAll',
-		type: 'boolean',
-		default: false,
-		description: 'Whether to return all results or only up to a given limit',
-		displayOptions: {
-			show: {
-				resource: ['transaction', 'invoice'],
-				operation: ['getTransactions', 'listInvoices'],
-			},
-		},
-	},
-	{
-		displayName: 'Page',
-		name: 'page',
-		type: 'number',
-		default: 1,
-		typeOptions: {
-			minValue: 1,
-		},
-		displayOptions: {
-			show: {
-				resource: ['transaction', 'invoice'],
-				operation: ['getTransactions', 'listInvoices'],
-				returnAll: [false],
-			},
-		},
-	},
-	{
-		displayName: 'Page Size',
-		name: 'pageSize',
-		type: 'number',
-		default: 100, // Transactions default 100; for invoices you can override to 20 in logic if needed
-		typeOptions: {
-			minValue: 1,
-		},
-		description: 'Number of results per page (default 100 for transactions, 20 for invoices)',
-		displayOptions: {
-			show: {
-				resource: ['transaction', 'invoice'],
-				operation: ['getTransactions', 'listInvoices'],
-			},
-		},
-	},
-	{
-		displayName: 'Start Date',
-		name: 'startDate',
-		type: 'dateTime',
-		required: true,
-		default: '',
-		description: 'Start date for transactions. Must be within the last 3 years.',
-		placeholder: 'e.g. 2024-01-01T00:00:00.000Z',
-		displayOptions: {
-			show: {
-				resource: ['transaction'],
-				operation: ['getTransactions'],
-			},
-		},
-	},
-	{
-		displayName: 'End Date',
-		name: 'endDate',
-		type: 'dateTime',
-		required: true,
-		default: '',
-		description: 'End date for transactions. Cannot be more than 31 days after start date.',
-		placeholder: 'e.g. 2024-01-31T23:59:59.999Z',
-		displayOptions: {
-			show: {
-				resource: ['transaction'],
-				operation: ['getTransactions'],
-			},
-		},
-	},
-	{
-		displayName: 'Transaction ID',
-		name: 'transactionId',
-		type: 'string',
-		default: '',
-		displayOptions: {
-			show: {
-				resource: ['transaction'],
-				operation: ['getTransactions'],
-			},
-		},
-	},
-	{
-		displayName: 'Fields',
-		name: 'fields',
-		type: 'multiOptions',
-		options: [
-			{ name: 'Account Info', value: 'account_info' },
-			{ name: 'All', value: 'all' },
-			{ name: 'Auction Info', value: 'auction_info' },
-			{ name: 'Cart Info', value: 'cart_info' },
-			{ name: 'Incentive Info', value: 'incentive_info' },
-			{ name: 'Store Info', value: 'store_info' },
-			{ name: 'Transaction Info', value: 'transaction_info' },
-		],
-		default: ['all'],
-		displayOptions: {
-			show: {
-				resource: ['transaction'],
-				operation: ['getTransactions'],
-			},
-		},
-	},
-	{
 		displayName: 'Invoice ID',
 		name: 'invoiceId',
 		type: 'string',
 		required: true,
 		default: '',
+		description: 'The ID of the invoice to retrieve, send, or update',
 		displayOptions: {
 			show: {
 				resource: ['invoice'],
@@ -237,7 +113,7 @@ const nodeProperties: INodeProperties[] = [
 		type: 'json',
 		default: '{}',
 		required: true,
-		description: 'The invoice object as JSON',
+		description: 'The invoice object as JSON (refer to PayPal API docs for structure)',
 		displayOptions: {
 			show: {
 				resource: ['invoice'],
@@ -246,17 +122,55 @@ const nodeProperties: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Additional Parameters',
-		name: 'additionalParams',
-		type: 'json',
-		default: '{}',
-		description: 'Additional send parameters as JSON (subject, note, etc.)',
+		displayName: 'Send Parameters',
+		name: 'sendParams',
+		type: 'collection',
+		placeholder: 'Add Parameter',
+		default: {},
+		description: 'Additional parameters for sending the invoice',
 		displayOptions: {
 			show: {
 				resource: ['invoice'],
 				operation: ['sendInvoice'],
 			},
 		},
+		options: [
+			{
+				displayName: 'CC Emails',
+				name: 'ccEmails',
+				type: 'string',
+				default: '',
+				description: 'Comma-separated list of additional email addresses to receive a copy',
+			},
+			{
+				displayName: 'Note',
+				name: 'note',
+				type: 'string',
+				default: '',
+				description: 'A note to the payer',
+			},
+			{
+				displayName: 'Send To Merchant',
+				name: 'sendToMerchant',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to send a copy of the email to the merchant',
+			},
+			{
+				displayName: 'Send To Payer',
+				name: 'sendToPayer',
+				type: 'boolean',
+				default: true,
+				description: 'Whether to send a copy of the email to the payer',
+			},
+			{
+				displayName: 'Subject',
+				name: 'subject',
+				type: 'string',
+				default: '',
+				description: 'The subject line for the email that PayPal sends when you send the invoice',
+			},
+		],
 	},
 	{
 		displayName: 'Patches',
@@ -264,7 +178,7 @@ const nodeProperties: INodeProperties[] = [
 		type: 'json',
 		default: '[]',
 		required: true,
-		description: 'Array of patch operations as JSON',
+		description: 'Array of patch operations as JSON (refer to PayPal API docs for patch format)',
 		displayOptions: {
 			show: {
 				resource: ['invoice'],
@@ -273,92 +187,190 @@ const nodeProperties: INodeProperties[] = [
 		},
 	},
 	{
-		displayName: 'Total Required',
-		name: 'totalRequired',
-		type: 'boolean',
-		default: false,
-		description: 'Whether to return total_items and total_pages',
+		displayName: 'Pagination',
+		name: 'pagination',
+		type: 'collection',
+		placeholder: 'Add Pagination Option',
+		default: {},
 		displayOptions: {
 			show: {
-				resource: ['invoice'],
-				operation: ['listInvoices'],
+				resource: ['transaction', 'invoice'],
+				operation: ['getTransactions', 'listInvoices'],
 			},
 		},
-	},
-	{
-		displayName: 'Fields',
-		name: 'fieldsInvoices',
-		type: 'string',
-		default: '',
-		description: 'Comma-separated list of fields to return',
-		displayOptions: {
-			show: {
-				resource: ['invoice'],
-				operation: ['listInvoices'],
-			},
-		},
-	},
-	{
-		displayName: 'Status',
-		name: 'status',
-		type: 'multiOptions',
 		options: [
-			{ name: 'Cancelled', value: 'CANCELLED' },
-			{ name: 'Draft', value: 'DRAFT' },
-			{ name: 'Marked As Paid', value: 'MARKED_AS_PAID' },
-			{ name: 'Marked As Refunded', value: 'MARKED_AS_REFUNDED' },
-			{ name: 'Paid', value: 'PAID' },
-			{ name: 'Partially Refunded', value: 'PARTIALLY_REFUNDED' },
-			{ name: 'Payment Pending', value: 'PAYMENT_PENDING' },
-			{ name: 'Refunded', value: 'REFUNDED' },
-			{ name: 'Scheduled', value: 'SCHEDULED' },
-			{ name: 'Sent', value: 'SENT' },
+			{
+				displayName: 'Return All',
+				name: 'returnAll',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to return all results or only up to a given limit',
+			},
+			{
+				displayName: 'Page',
+				name: 'page',
+				type: 'number',
+				default: 1,
+				typeOptions: {
+					minValue: 1,
+				},
+				displayOptions: {
+					show: {
+						returnAll: [false],
+					},
+				},
+				description: 'The page number to retrieve (starts at 1)',
+			},
+			{
+				displayName: 'Page Size',
+				name: 'pageSize',
+				type: 'number',
+				default: 100,
+				typeOptions: {
+					minValue: 1,
+				},
+				description: 'Number of results per page (max 500 for transactions, 100 for invoices)',
+			},
 		],
-		default: [],
-		displayOptions: {
-			show: {
-				resource: ['invoice'],
-				operation: ['listInvoices'],
-			},
-		},
 	},
 	{
-		displayName: 'Recipient Email',
-		name: 'recipientEmail',
-		type: 'string',
-		default: '',
+		displayName: 'Filters',
+		name: 'filters',
+		type: 'collection',
+		placeholder: 'Add Filter',
+		default: {},
 		displayOptions: {
 			show: {
-				resource: ['invoice'],
-				operation: ['listInvoices'],
+				resource: ['transaction'],
+				operation: ['getTransactions'],
 			},
 		},
+		options: [
+			{
+				displayName: 'Start Date',
+				name: 'startDate',
+				type: 'dateTime',
+				default: '',
+				description: 'Start date for transactions (must be within the last 3 years)',
+				placeholder: 'e.g. 2024-01-01T00:00:00.000Z',
+			},
+			{
+				displayName: 'End Date',
+				name: 'endDate',
+				type: 'dateTime',
+				default: '',
+				description: 'End date for transactions (max 31 days after start date)',
+				placeholder: 'e.g. 2024-01-31T23:59:59.999Z',
+			},
+			{
+				displayName: 'Transaction ID',
+				name: 'transactionId',
+				type: 'string',
+				default: '',
+				description: 'Filter by a specific transaction ID',
+			},
+			{
+				displayName: 'Fields',
+				name: 'fields',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Account Info', value: 'account_info' },
+					{ name: 'All', value: 'all' },
+					{ name: 'Auction Info', value: 'auction_info' },
+					{ name: 'Cart Info', value: 'cart_info' },
+					{ name: 'Incentive Info', value: 'incentive_info' },
+					{ name: 'Store Info', value: 'store_info' },
+					{ name: 'Transaction Info', value: 'transaction_info' },
+				],
+				default: ['all'],
+				description: 'Fields to include in the response',
+			},
+		],
 	},
 	{
-		displayName: 'Start Invoice Date',
-		name: 'startInvoiceDate',
-		type: 'dateTime',
-		default: '',
-		description: 'Start invoice date (YYYY-MM-DD)',
+		displayName: 'Filters',
+		name: 'filters',
+		type: 'collection',
+		placeholder: 'Add Filter',
+		default: {},
 		displayOptions: {
 			show: {
 				resource: ['invoice'],
 				operation: ['listInvoices'],
 			},
 		},
+		options: [
+			{
+				displayName: 'End Invoice Date',
+				name: 'endInvoiceDate',
+				type: 'dateTime',
+				default: '',
+				description: 'End date for invoice creation (YYYY-MM-DD)',
+			},
+			{
+				displayName: 'Fields',
+				name: 'fieldsInvoices',
+				type: 'string',
+				default: '',
+				description: 'Comma-separated list of fields to return (e.g., ID,status)',
+			},
+			{
+				displayName: 'Recipient Email',
+				name: 'recipientEmail',
+				type: 'string',
+				default: '',
+				description: 'Filter by recipient email address',
+			},
+			{
+				displayName: 'Start Invoice Date',
+				name: 'startInvoiceDate',
+				type: 'dateTime',
+				default: '',
+				description: 'Start date for invoice creation (YYYY-MM-DD)',
+			},
+			{
+				displayName: 'Status',
+				name: 'status',
+				type: 'multiOptions',
+				options: [
+					{ name: 'Cancelled', value: 'CANCELLED' },
+					{ name: 'Draft', value: 'DRAFT' },
+					{ name: 'Marked As Paid', value: 'MARKED_AS_PAID' },
+					{ name: 'Marked As Refunded', value: 'MARKED_AS_REFUNDED' },
+					{ name: 'Paid', value: 'PAID' },
+					{ name: 'Partially Refunded', value: 'PARTIALLY_REFUNDED' },
+					{ name: 'Payment Pending', value: 'PAYMENT_PENDING' },
+					{ name: 'Refunded', value: 'REFUNDED' },
+					{ name: 'Scheduled', value: 'SCHEDULED' },
+					{ name: 'Sent', value: 'SENT' },
+				],
+				default: [],
+				description: 'Filter by invoice status',
+			},
+			{
+				displayName: 'Total Required',
+				name: 'totalRequired',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to return total_items and total_pages in the response',
+			},
+		],
 	},
 	{
-		displayName: 'End Invoice Date',
-		name: 'endInvoiceDate',
-		type: 'dateTime',
-		default: '',
-		description: 'End invoice date (YYYY-MM-DD)',
-		displayOptions: {
-			show: {
-				resource: ['invoice'],
-				operation: ['listInvoices'],
+		displayName: 'Additional Options',
+		name: 'additionalOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		options: [
+			{
+				displayName: 'Include Raw PayPal Data',
+				name: 'includeRawData',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to include raw_request and raw_response in the output data for debugging',
 			},
-		},
+		],
 	},
 ];
 
@@ -442,14 +454,22 @@ async function getTransactions(
 	accessToken: string,
 	apiUrl: string,
 ): Promise<INodeExecutionData[]> {
-	const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
-	let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 100;
+	const pagination = this.getNodeParameter('pagination', 0) as IDataObject;
+	const filters = this.getNodeParameter('filters', 0) as IDataObject;
+	const additionalOptions = this.getNodeParameter('additionalOptions', 0) as IDataObject;
+
+	const returnAll = (pagination.returnAll as boolean) || false;
+	let pageSize = (pagination.pageSize as number) || 100;
 	pageSize = Math.min(pageSize, 500);
-	const startDate = this.getNodeParameter('startDate', 0) as string;
-	const endDate = this.getNodeParameter('endDate', 0) as string;
-	const transactionId = this.getNodeParameter('transactionId', 0) as string;
-	const fields = this.getNodeParameter('fields', 0) as string[];
-	const page = returnAll ? 1 : (this.getNodeParameter('page', 0) as number);
+	const page = returnAll ? 1 : ((pagination.page as number) || 1);
+
+	const startDate = filters.startDate as string;
+	const endDate = filters.endDate as string;
+	if (!startDate || !endDate) {
+		throw new NodeOperationError(this.getNode(), 'Start Date and End Date are required');
+	}
+	const transactionId = filters.transactionId as string;
+	const fields = (filters.fields as string[]) || ['all'];
 
 	const qs: IDataObject = {
 		start_date: startDate.endsWith('Z') ? startDate : `${startDate}Z`,
@@ -465,8 +485,7 @@ async function getTransactions(
 
 	let firstResponse: any;
 	let firstRequest: any;
-	const options = this.getNodeParameter('options', 0) as IDataObject;
-	const includeRawData = options.includeRawData as boolean;
+	const includeRawData = additionalOptions.includeRawData as boolean;
 
 	do {
 		const { response, request } = await requestWithRetry.call(this, {
@@ -530,8 +549,8 @@ async function createInvoice(
 			Authorization: `Bearer ${accessToken}`,
 		},
 	});
-	const options = this.getNodeParameter('options', itemIndex) as IDataObject;
-	const includeRawData = options.includeRawData as boolean;
+	const additionalOptions = this.getNodeParameter('additionalOptions', itemIndex) as IDataObject;
+	const includeRawData = additionalOptions.includeRawData as boolean;
 
 	const responseData: any = { ...response };
 	if (includeRawData) {
@@ -549,13 +568,16 @@ async function sendInvoice(
 	apiUrl: string,
 ): Promise<INodeExecutionData[]> {
 	const invoiceId = this.getNodeParameter('invoiceId', itemIndex) as string;
-	const additionalParamsJson = this.getNodeParameter('additionalParams', itemIndex) as string;
-	let body: IDataObject = {};
-	try {
-		body = JSON.parse(additionalParamsJson);
-	} catch {
-		// Empty body if JSON parsing fails
+	const sendParams = this.getNodeParameter('sendParams', itemIndex) as IDataObject;
+	const body: IDataObject = {};
+	if (sendParams.subject) body.subject = sendParams.subject as string;
+	if (sendParams.note) body.note = sendParams.note as string;
+	if (sendParams.sendToMerchant !== undefined) body.send_to_merchant = sendParams.sendToMerchant as boolean;
+	if (sendParams.sendToPayer !== undefined) body.send_to_payer = sendParams.sendToPayer as boolean;
+	if (sendParams.ccEmails) {
+		body.cc_emails = (sendParams.ccEmails as string).split(',').map(email => email.trim());
 	}
+
 	const { response, request } = await requestWithRetry.call(this, {
 		method: 'POST',
 		url: `${apiUrl}/v2/invoicing/invoices/${invoiceId}/send`,
@@ -564,8 +586,8 @@ async function sendInvoice(
 			Authorization: `Bearer ${accessToken}`,
 		},
 	});
-	const options = this.getNodeParameter('options', itemIndex) as IDataObject;
-	const includeRawData = options.includeRawData as boolean;
+	const additionalOptions = this.getNodeParameter('additionalOptions', itemIndex) as IDataObject;
+	const includeRawData = additionalOptions.includeRawData as boolean;
 
 	const responseData: any = { ...response };
 	if (includeRawData) {
@@ -598,8 +620,8 @@ async function updateInvoice(
 			Authorization: `Bearer ${accessToken}`,
 		},
 	});
-	const options = this.getNodeParameter('options', itemIndex) as IDataObject;
-	const includeRawData = options.includeRawData as boolean;
+	const additionalOptions = this.getNodeParameter('additionalOptions', itemIndex) as IDataObject;
+	const includeRawData = additionalOptions.includeRawData as boolean;
 
 	const responseData: any = {
 		success: true,
@@ -627,8 +649,8 @@ async function getInvoice(
 			Authorization: `Bearer ${accessToken}`,
 		},
 	});
-	const options = this.getNodeParameter('options', 0) as IDataObject;
-	const includeRawData = options.includeRawData as boolean;
+	const additionalOptions = this.getNodeParameter('additionalOptions', 0) as IDataObject;
+	const includeRawData = additionalOptions.includeRawData as boolean;
 
 	const responseData: any = { ...response };
 	if (includeRawData) {
@@ -644,16 +666,20 @@ async function listInvoices(
 	accessToken: string,
 	apiUrl: string,
 ): Promise<INodeExecutionData[]> {
-	const returnAll = this.getNodeParameter('returnAll', 0) as boolean;
-	let pageSize = (this.getNodeParameter('pageSize', 0) as number) || 20;
+	const pagination = this.getNodeParameter('pagination', 0) as IDataObject;
+	const filters = this.getNodeParameter('filters', 0) as IDataObject;
+	const additionalOptions = this.getNodeParameter('additionalOptions', 0) as IDataObject;
+
+	const returnAll = (pagination.returnAll as boolean) || false;
+	let pageSize = (pagination.pageSize as number) || 20;
 	pageSize = Math.min(pageSize, 100);
-	const page = returnAll ? 1 : (this.getNodeParameter('page', 0) as number);
-	const totalRequired = this.getNodeParameter('totalRequired', 0) as boolean;
-	const fieldsInvoices = this.getNodeParameter('fieldsInvoices', 0) as string;
-	const status = this.getNodeParameter('status', 0) as string[];
-	const recipientEmail = this.getNodeParameter('recipientEmail', 0) as string;
-	const startInvoiceDate = this.getNodeParameter('startInvoiceDate', 0) as string;
-	const endInvoiceDate = this.getNodeParameter('endInvoiceDate', 0) as string;
+	const page = returnAll ? 1 : ((pagination.page as number) || 1);
+	const totalRequired = (filters.totalRequired as boolean) || false;
+	const fieldsInvoices = filters.fieldsInvoices as string;
+	const status = (filters.status as string[]) || [];
+	const recipientEmail = filters.recipientEmail as string;
+	const startInvoiceDate = filters.startInvoiceDate as string;
+	const endInvoiceDate = filters.endInvoiceDate as string;
 
 	const qs: IDataObject = {
 		page_size: pageSize.toString(),
@@ -671,6 +697,8 @@ async function listInvoices(
 
 	let firstResponse: any;
 	let firstRequest: any;
+	const includeRawData = additionalOptions.includeRawData as boolean;
+
 	do {
 		const { response, request } = await requestWithRetry.call(this, {
 			method: 'GET',
@@ -689,9 +717,6 @@ async function listInvoices(
 		const nextLink = response.links?.find((l: any) => l.rel === 'next');
 		url = nextLink ? nextLink.href : null;
 	} while (returnAll && url);
-
-	const options = this.getNodeParameter('options', 0) as IDataObject;
-	const includeRawData = options.includeRawData as boolean;
 
 	const returnData: INodeExecutionData[] = [];
 	for (const item of results) {
