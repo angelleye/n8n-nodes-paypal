@@ -98,6 +98,12 @@ const nodeProperties: INodeProperties[] = [
 		},
 		options: [
 			{
+				name: 'Cancel',
+				value: 'cancelInvoice',
+				description: 'Cancel an existing draft or sent invoice',
+				action: 'Cancel invoice',
+			},
+			{
 				name: 'Create',
 				value: 'createInvoice',
 				description: 'Create a new invoice',
@@ -142,7 +148,7 @@ const nodeProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['invoice'],
-				operation: ['getInvoice', 'sendInvoice', 'updateInvoice'],
+				operation: ['getInvoice', 'sendInvoice', 'updateInvoice', 'cancelInvoice'],
 			},
 		},
 	},
@@ -212,6 +218,52 @@ const nodeProperties: INodeProperties[] = [
 				type: 'string',
 				default: '',
 				description: 'The subject line for the email that PayPal sends when you send the invoice',
+			},
+		],
+	},
+
+	// Cancel Parameters Collection - Configuration options for cancelling an invoice.
+	{
+		displayName: 'Cancel Parameters',
+		name: 'cancelParams',
+		type: 'collection',
+		placeholder: 'Add Parameter',
+		default: {},
+		description: 'Parameters for canceling the invoice',
+		displayOptions: {
+			show: {
+				resource: ['invoice'],
+				operation: ['cancelInvoice'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Subject',
+				name: 'subject',
+				type: 'string',
+				default: '',
+				description: 'The subject line for the email that PayPal sends when you cancel the invoice',
+			},
+			{
+				displayName: 'Note',
+				name: 'note',
+				type: 'string',
+				default: '',
+				description: 'A note to the payer',
+			},
+			{
+				displayName: 'Send To Merchant',
+				name: 'sendToMerchant',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to send a copy of the email to the merchant',
+			},
+			{
+				displayName: 'Send To Payer',
+				name: 'sendToPayer',
+				type: 'boolean',
+				default: true,
+				description: 'Whether to send a copy of the email to the payer',
 			},
 		],
 	},
