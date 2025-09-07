@@ -1,3 +1,26 @@
+/**
+ * PayPal n8n Node Implementation
+ *
+ * This file implements a custom n8n node for interacting with PayPal's REST API.
+ * It supports two main resources: Transactions and Invoices.
+ *
+ * Supported Operations:
+ * - Transactions: Get transaction details within a date range
+ * - Invoices: Create, get, list, send, and update invoices
+ *
+ * Features:
+ * - OAuth 2.0 authentication with PayPal API
+ * - Pagination support for listing operations
+ * - Retry logic for rate-limited requests
+ * - Support for both sandbox and production environments
+ * - Raw request/response data inclusion for debugging
+ *
+ * @author Angell EYE
+ * @version 1.0.0
+ * @requires n8n-workflow
+ */
+
+// Core n8n workflow types and interfaces
 import { IExecuteFunctions } from 'n8n-workflow';
 
 import {
@@ -11,6 +34,18 @@ import {
 	INodeProperties,
 } from 'n8n-workflow';
 
+/**
+ * Node Properties Configuration
+ *
+ * Defines all the user interface elements and parameters that appear
+ * in the n8n editor when users configure this PayPal node.
+ *
+ * The properties are organized hierarchically:
+ * 1. Resource selection (Transaction or Invoice)
+ * 2. Operation selection (based on chosen resource)
+ * 3. Operation-specific parameters
+ * 4. Common options (pagination, filters, additional options)
+ */
 const nodeProperties: INodeProperties[] = [
 	{
 		displayName: 'Resource',
@@ -49,6 +84,8 @@ const nodeProperties: INodeProperties[] = [
 		],
 		default: 'getTransactions',
 	},
+
+	// Invoice Operations - Only shown when Invoice resource is selected.
 	{
 		displayName: 'Operation',
 		name: 'operation',
@@ -93,6 +130,8 @@ const nodeProperties: INodeProperties[] = [
 		],
 		default: 'createInvoice',
 	},
+
+	// Invoice ID Parameter - Required for operations that work with existing invoices
 	{
 		displayName: 'Invoice ID',
 		name: 'invoiceId',
@@ -107,6 +146,8 @@ const nodeProperties: INodeProperties[] = [
 			},
 		},
 	},
+
+	// Invoice JSON Parameter - For creating new invoices
 	{
 		displayName: 'Invoice',
 		name: 'invoice',
@@ -121,6 +162,8 @@ const nodeProperties: INodeProperties[] = [
 			},
 		},
 	},
+
+	// Send Parameters Collection - Configuration options for sending invoices.
 	{
 		displayName: 'Send Parameters',
 		name: 'sendParams',
@@ -172,6 +215,8 @@ const nodeProperties: INodeProperties[] = [
 			},
 		],
 	},
+
+	// Patches Parameter - For updating invoices using JSON Patch operations
 	{
 		displayName: 'Patches',
 		name: 'patches',
@@ -186,6 +231,8 @@ const nodeProperties: INodeProperties[] = [
 			},
 		},
 	},
+
+	// Pagination Configuration - Controls how many results to retrieve and how to navigate through pages.
 	{
 		displayName: 'Pagination',
 		name: 'pagination',
@@ -233,6 +280,8 @@ const nodeProperties: INodeProperties[] = [
 			},
 		],
 	},
+
+	// Transaction Filters - Filtering options specific to transaction queries
 	{
 		displayName: 'Filters',
 		name: 'filters',
@@ -287,6 +336,8 @@ const nodeProperties: INodeProperties[] = [
 			},
 		],
 	},
+
+	// Invoice Filters - Filtering options specific to invoice listing queries
 	{
 		displayName: 'Filters',
 		name: 'filters',
@@ -356,6 +407,8 @@ const nodeProperties: INodeProperties[] = [
 			},
 		],
 	},
+
+	// Additional Options - Global options that apply to all operations
 	{
 		displayName: 'Additional Options',
 		name: 'additionalOptions',
@@ -374,7 +427,25 @@ const nodeProperties: INodeProperties[] = [
 	},
 ];
 
+/**
+ * PayPal Node Class
+ *
+ * This is the main class that implements the n8n node interface.
+ * It defines the node's metadata, configuration, and execution behavior.
+ *
+ * The class extends INodeType which is the base interface for all n8n nodes.
+ * It provides the structure and methods needed for n8n to recognize,
+ * configure, and execute this node within workflows.
+ */
 export class PayPal implements INodeType {
+
+	/**
+	 * Node Description Configuration
+	 *
+	 * This object contains all the metadata that tells n8n how to display
+	 * and interact with this node in the editor interface.
+	 */
+
 	description: INodeTypeDescription = {
 		displayName: 'PayPal (Angell EYE)',
 		name: 'payPal',
@@ -397,6 +468,16 @@ export class PayPal implements INodeType {
 		properties: nodeProperties,
 	};
 
+	/**
+	 * Main Execution Method
+	 *
+	 * This is the core method that gets called when the node executes in a workflow.
+	 * It processes the input data, performs the selected PayPal operation,
+	 * and returns the results.
+	 *
+	 * @param this - The execution context providing access to node parameters, credentials, and helpers
+	 * @returns Promise that resolves to an array of execution data arrays
+	 */
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
@@ -449,6 +530,22 @@ export class PayPal implements INodeType {
 	}
 }
 
+/**
+ * Get Transactions Operation
+ *
+ * Retrieves transaction details from PayPal's Reporting API within a specified date range.
+ * This function handles pagination automatically and supports various filtering options.
+ *
+ * PayPal API Constraints:
+ * - Date range must be within the last 3 years
+ * - Maximum 31 days between start and end date
+ * - Maximum 500 transactions per page
+ *
+ * @param this - n8n execution context
+ * @param accessToken - OAuth access token for PayPal API
+ * @param apiUrl - Base URL for PayPal API (sandbox or production)
+ * @returns Array of transaction data wrapped in n8n execution format
+ */
 async function getTransactions(
 	this: IExecuteFunctions,
 	accessToken: string,
@@ -528,6 +625,18 @@ async function getTransactions(
 	return returnData;
 }
 
+/**
+ * Create Invoice Operation
+ *
+ * Creates a new invoice using PayPal's Invoicing API.
+ * The invoice data is provided as JSON and validated before sending to PayPal.
+ *
+ * @param this - n8n execution context
+ * @param itemIndex - Index of the current input item being processed
+ * @param accessToken - OAuth access token for PayPal API
+ * @param apiUrl - Base URL for PayPal API (sandbox or production)
+ * @returns Array containing the created invoice data
+ */
 async function createInvoice(
 	this: IExecuteFunctions,
 	itemIndex: number,
@@ -561,6 +670,18 @@ async function createInvoice(
 	return [{ json: responseData }];
 }
 
+/**
+ * Send Invoice Operation
+ *
+ * Sends an existing invoice to recipients via email using PayPal's API.
+ * Supports customization of email subject, notes, and recipient lists.
+ *
+ * @param this - n8n execution context
+ * @param itemIndex - Index of the current input item being processed
+ * @param accessToken - OAuth access token for PayPal API
+ * @param apiUrl - Base URL for PayPal API (sandbox or production)
+ * @returns Array containing the send operation result
+ */
 async function sendInvoice(
 	this: IExecuteFunctions,
 	itemIndex: number,
@@ -598,6 +719,21 @@ async function sendInvoice(
 	return [{ json: responseData }];
 }
 
+/**
+ * Update Invoice Operation
+ *
+ * Updates an existing invoice using JSON Patch operations as defined by RFC 6902.
+ * This allows for precise modifications to specific fields without replacing the entire invoice.
+ *
+ * Example patch format:
+ * [{"op": "replace", "path": "/detail/invoice_number", "value": "NEW-001"}]
+ *
+ * @param this - n8n execution context
+ * @param itemIndex - Index of the current input item being processed
+ * @param accessToken - OAuth access token for PayPal API
+ * @param apiUrl - Base URL for PayPal API (sandbox or production)
+ * @returns Array containing the update operation result
+ */
 async function updateInvoice(
 	this: IExecuteFunctions,
 	itemIndex: number,
@@ -636,6 +772,17 @@ async function updateInvoice(
 	return [{ json: responseData }];
 }
 
+/**
+ * Get Invoice Operation
+ *
+ * Retrieves detailed information about a specific invoice by its ID.
+ * Returns complete invoice data including status, amounts, recipient info, etc.
+ *
+ * @param this - n8n execution context
+ * @param accessToken - OAuth access token for PayPal API
+ * @param apiUrl - Base URL for PayPal API (sandbox or production)
+ * @returns Array containing the invoice data
+ */
 async function getInvoice(
 	this: IExecuteFunctions,
 	accessToken: string,
@@ -661,6 +808,21 @@ async function getInvoice(
 	return [{ json: responseData }];
 }
 
+/**
+ * List Invoices Operation
+ *
+ * Retrieves a list of invoices with optional filtering and pagination.
+ * Supports filtering by status, date range, recipient email, and field selection.
+ *
+ * PayPal API Constraints:
+ * - Maximum 100 invoices per page
+ * - Date filters use YYYY-MM-DD format (not full ISO timestamps)
+ *
+ * @param this - n8n execution context
+ * @param accessToken - OAuth access token for PayPal API
+ * @param apiUrl - Base URL for PayPal API (sandbox or production)
+ * @returns Array of invoice data wrapped in n8n execution format
+ */
 async function listInvoices(
 	this: IExecuteFunctions,
 	accessToken: string,
@@ -731,6 +893,27 @@ async function listInvoices(
 	return returnData;
 }
 
+/**
+ * Get Access Token Utility Function
+ *
+ * Obtains an OAuth 2.0 access token from PayPal using the Client Credentials flow.
+ * This token is required for all authenticated API requests to PayPal's REST API.
+ *
+ * OAuth 2.0 Flow:
+ * 1. Encode client credentials (ID and secret) using Basic authentication
+ * 2. Request token with specific scope for the intended API operations
+ * 3. Receive short-lived access token (typically expires in 9 hours)
+ *
+ * PayPal API Scopes:
+ * - Transactions: 'https://uri.paypal.com/services/reporting/search/read'
+ * - Invoicing: 'https://uri.paypal.com/services/invoicing'
+ *
+ * @param this - n8n execution context for accessing helpers and error handling
+ * @param credentials - PayPal API credentials containing clientId, clientSecret, and environment
+ * @param scope - OAuth scope string defining the permissions needed for the operation
+ * @returns Promise that resolves to the access token string
+ * @throws NodeApiError if authentication fails or credentials are invalid
+ */
 async function getAccessToken(
 	this: IExecuteFunctions,
 	credentials: IDataObject,
@@ -762,6 +945,29 @@ async function getAccessToken(
 	}
 }
 
+/**
+ * Request With Retry Utility Function
+ *
+ * Executes HTTP requests to PayPal API with built-in retry logic for rate limiting.
+ * PayPal APIs may return HTTP 429 (Too Many Requests) during high traffic periods.
+ * This function implements exponential backoff to handle such scenarios gracefully.
+ *
+ * Retry Strategy:
+ * - Retries only on HTTP 429 (rate limit) errors
+ * - Uses exponential backoff: 1s, 2s, 4s delays
+ * - Maximum 3 retry attempts before giving up
+ * - Returns both response and sanitized request for debugging
+ *
+ * Security Features:
+ * - Removes Authorization header from logged request data
+ * - Prevents sensitive token information from appearing in logs/debugging
+ *
+ * @param this - n8n execution context for accessing HTTP helpers
+ * @param options - HTTP request options (method, URL, headers, body)
+ * @param retries - Number of retry attempts remaining (default: 3)
+ * @returns Promise resolving to object containing response and sanitized request data
+ * @throws Error if all retries are exhausted or non-retryable error occurs
+ */
 async function requestWithRetry(
 	this: IExecuteFunctions,
 	options: IHttpRequestOptions,
